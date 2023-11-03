@@ -1,0 +1,66 @@
+#Using the code from "PEAK_FINDER" script, this additional script takes the .txt files, concatenates the 3 arrays of voltages, then tells you the 30 highest values in the array.
+
+
+#This code will take in 3 .txt files, combine them, take the top 30 maximum voltage outputs 
+#then find the avg max output for entire run
+file1='MDA_data/21100001.TXT'
+file2='MDA_data/21100002.TXT'
+file3='MDA_data/21100003.TXT'
+
+def quicklook(infile1, infile2, infile3):
+    s = 4.0
+    n = 10                
+    
+    t1, k1 = np.loadtxt(infile1,skiprows=4,unpack=True,delimiter=',')
+    v1 = k1*(3.3/4096)/s
+    
+    sorted_index_array1 = np.argsort(v1)  
+    sorted_array1 = v1[sorted_index_array1] 
+    rslt1 = sorted_array1[-n : ] 
+    print("The 10 largest voltage values for run ", infile1, "are".format(n), rslt1)
+    print() 
+    x1 = mean(rslt1) 
+    print('The mean of the top 10 highest voltages for run ', infile1, 'is ', x1)
+    print()
+    
+    t2, k2 = np.loadtxt(infile2,skiprows=4,unpack=True,delimiter=',')
+    v2 = k2*(3.3/4096)/s
+    
+    sorted_index_array2 = np.argsort(v2)  
+    sorted_array2 = v2[sorted_index_array2] 
+    rslt2 = sorted_array2[-n : ] 
+    print("The 10 largest voltage values for run ", infile2, "are".format(n), rslt2)
+    print() 
+    x2 = mean(rslt2) 
+    print('The mean of the top 10 highest voltages for run ', infile2, 'is ', x2)
+    print()
+    
+    t3, k3 = np.loadtxt(infile3,skiprows=4,unpack=True,delimiter=',')
+    v3 = k3*(3.3/4096)/s
+    
+    sorted_index_array3 = np.argsort(v3)  
+    sorted_array3 = v3[sorted_index_array3] 
+    rslt3 = sorted_array3[-n : ] 
+    print("The 10 largest voltage values for run ", infile3, "are".format(n), rslt3)
+    print() 
+    x3 = mean(rslt3) 
+    print('The mean of the top 10 highest voltages for run ', infile3, 'is ', x3)
+    
+    x_mean = mean([x1, x2, x3])
+    print('The average of the three averages is ', x_mean)
+    print()
+    
+    n1 = 30
+    array_of_voltages = np.concatenate((v1, v2, v3))
+    sorted_array_of_voltages = np.argsort(array_of_voltages)
+    sorted_voltages = array_of_voltages[sorted_array_of_voltages]
+    print(array_of_voltages)
+    print(array_of_voltages.shape)
+    rslt4 = sorted_voltages[-n1 :]
+    print("The 30 largest voltage values for run are".format(n1), rslt4)
+    print() 
+    x4 = mean(rslt4) 
+    print('The mean of the top 30 highest voltages for all three files of this run ', 'is ', x4)
+    print()
+    
+quicklook(file1, file2, file3)
