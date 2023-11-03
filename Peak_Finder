@@ -1,0 +1,119 @@
+#Credit: This script was originally written by Ronaldo R. and added to by Heather M.
+#The main function pulls the data from the .txt file, finds the peaks, and produces a set of 2 subplots 
+#The top plot is Voltage vs. Time Stamp
+#The second plot is actually a histogram that represents the number of data gaps per millisecond
+
+import matplotlib
+matplotlib.use('TKAgg', force=True)
+from matplotlib import pyplot as plt
+from scipy.signal import find_peaks
+import numpy as np
+import pdb
+from statistics import mean
+#import through python console
+#otherwise just paste file name as str instead of input() statement
+#file=input('tests/MDA_data/21010001.TXT')
+
+file='MDA_data/21100001.TXT'
+#file='MDA_data/21100002.TXT'
+#file='MDA_data/21100003.TXT'
+
+def quicklook(infile):
+    #read data from .txt file which is the input argument
+    t, k = np.loadtxt(infile,skiprows=4,unpack=True,delimiter=',')
+    s = 4.0
+    v = k*(3.3/4096)/s
+    
+    t_micro = t/1e6
+    print(t_micro)
+    #print('The voltages are ', v)
+    #print('The len of the array for v-values is ', len(v))
+    #print('The shape of this array is ', v.shape)
+    sorted_index_array = np.argsort(v)  
+    # sorted array 
+    sorted_array = v[sorted_index_array] 
+    #print("Sorted array:", sorted_array) 
+  
+    # we want 10 largest value 
+    n = 10
+    # take n largest values in the array 
+    rslt = sorted_array[-n : ] 
+    # show the output 
+    print("The 10 largest voltage values for run ", infile, "is".format(n), rslt)
+    print() 
+    x = mean(rslt) 
+    print('The mean of the top 10 highest voltages for run ', infile, 'is ', x)
+    #print('The std of v + the median is ', 1*np.std(v)+np.median(v))
+
+    #Make a list of the time differences (gaps) beween adjacent points:
+    dt = t - np.roll(t,1)
+    dt = dt[1:]
+    #print('Median gap: ',np.median(dt))
+    h,tax = np.histogram(dt,range=[0,max(dt)],bins=int(max(dt)/100.))
+
+    #print the times, durations,  and positions of the longest gaps:
+    w = np.where(dt > 50000.)
+    w=w[0]
+    #print('Locations of long gaps: ',w)
+    #print('Times of long gaps: ',t[w])
+    #print('Durations of long gaps: ',dt[w])
+
+
+    #find peaks using all data points 5 sigma above the median (baseline) as a criteria
+    peaks, _= find_peaks(v,height=1*np.std(v)+np.median(v))
+    #print('Peak values from this run: ', peaks)
+    
+    #we want the next 10 points after a peak to use for the fitting routine.
+    
+    #print(peaks, _)
+    #p=np.array(peaks)
+    #print(p.shape)
+    #ind = np.argpartition(p, -10)[-10:]
+    #print(ind)
+    #top10 = p[ind]
+    #print(top10)
+
+
+    curve=np.array([])
+    for i in range(len(peaks)):
+        arr1=np.arange(peaks[i],peaks[i]+10,1)
+        curve=np.array(np.append(curve,arr1),int)
+        
+    #the above block of code gathers the indices of the peak and the 10 points following it
+    #and stores it in the variable curve which is passed on to the plotter
+    #these data will be fit so we will need to probably create some framework to separate the peaks that were trying to fit
+
+    #plot dataset
+    #plt.figure(figsize=(25,50))
+    
+    fig, axs = plt.subplots(2)
+    plt.subplots_adjust(left=0.1,
+                    bottom=0.1, 
+                    right=0.9, 
+                    top=0.9, 
+                    wspace=0.4, 
+                    hspace=0.4)
+    #fig.suptitle(infile)
+    #axs[0].scatter(t/1.e6,v,s=4)
+    #axs[0].plot(t/1.e6,v,alpha=0.5)
+    #axs[0].plot(t/1.e6, np.median(v)*np.ones(np.shape(t)))
+    #axs[0].plot(t[curve]/1e6,v[curve],'xr')
+    #axs[0].set_xlabel('TIME, Seconds')
+    #axs[0].set_ylabel('VOLTAGE, Volts')
+    
+    fig.suptitle(infile)
+    axs[0].scatter(t_micro,v,s=4)
+    axs[0].plot(t_micro,v,alpha=0.5)
+    axs[0].plot(t_micro, np.median(v)*np.ones(np.shape(t)))
+    axs[0].plot(t_micro[curve],v[curve],'xr')
+    axs[0].set_xlabel('TIME, Seconds')
+    axs[0].set_ylabel('VOLTAGE, Volts')
+
+    #plot histogram of gaps in milliseconds:
+    axs[1].plot(tax[1:]/1000.,h)
+    axs[1].set_yscale('log')
+    axs[1].set_xlabel('GAP, milliseconds')
+    axs[1].set_ylabel('NO. OF GAPS')
+    plt.show()
+
+quicklook(file)
