@@ -1,0 +1,120 @@
+# MEDIUM BOARD CODE
+# NOV 20 LATEST ATTEMPT AT BASELINE CODE REWRITE
+import matplotlib
+matplotlib.use('TKAgg', force=True)
+from matplotlib import pyplot as plt
+from scipy.signal import find_peaks
+import numpy as np
+from statistics import mean
+
+#file1 = 'MDA_data/21380001.TXT'
+#file1 = 'MDA_data/21360001.TXT'
+file2 = 'MDA_data/21390003.TXT'
+#file3 = 'MDA_data/21390003.TXT'
+
+def calculate_baseline_from_pulses(infile, percentile): #calculates and prints the nth quantile of n% of data points
+    t, k = np.loadtxt(infile, skiprows=4, unpack=True, delimiter=',')
+    s = 20.0
+    v = k * (3.3 / 4096) / s
+    
+    print()
+    print()
+    print(f'For {infile}:') #This creates a header for each file you run the function on (easier to read)
+    print()
+    print()
+    
+    
+    sorted_data = np.sort(v) # Sort the data in ascending order
+    voltage_len = len(sorted_data) # Tell us the length of that array
+    median_value = np.median(v) # Calculate the median value of this dataset
+
+    #I did this 3 different ways to see if it changed the answers at all
+    baseline_quantile_sorted = np.quantile(sorted_data, 0.10)
+    baseline_quantile = np.quantile(v, 0.10)
+    value_at_percentile = np.quantile(v, percentile / 100.0)
+    
+    print(f"The median value for the entire array of voltages is: {median_value}")
+    print()
+    print(f'The len of the entire array of voltages is: {voltage_len}')
+    print()
+    print(f"Calculated Baseline sorted array QUANTILE from the lowest {percentile}% of data points: {baseline_quantile_sorted}")
+    print()
+    print(f"Calculated Baseline unsorted voltage QUANTILE from the lowest {percentile}% of data points: {baseline_quantile}")
+    print()
+    print(f"The {percentile}th percentile of the lowest {percentile}% values is: {value_at_percentile}")
+    print()
+    
+    # Check that the quantile is actually less than the median voltage
+    print(f"Quantile(0.10) = {baseline_quantile} {'is less than' if baseline_quantile < median_value else 'is NOT less than'} Median = {median_value}")
+    print()
+    
+    #For checking that something hasn't gone horribly wrong
+    n = 10
+    # Get indices of the n lowest values
+    lowest_indices = np.argsort(v)[:n]
+    # Get the corresponding values
+    lowest_values = v[lowest_indices]
+    # Print the values
+    print(f"The {n} lowest values in the dataset:")
+    print()
+    print(lowest_values)
+    print()
+    # Get indices of the n highest values for comparison
+    highest_indicies = np.argsort(v)[-n:]
+    # Get the corresponding values
+    highest_values = v[highest_indicies]
+    # Print the values for comparison
+    print(f"The {n} highest values in the dataset:")
+    print(highest_values)
+    print()
+    
+    return baseline_quantile, v
+
+
+def quicklook(infile, baseline_quantile, v):
+    t, k = np.loadtxt(infile, skiprows=4, unpack=True, delimiter=',')
+    t_micro = t / 1e6
+
+    dt = t - np.roll(t, 1)
+    dt = dt[1:]
+    h, tax = np.histogram(dt, range=[0, max(dt)], bins=int(max(dt) / 100.))
+    w = np.where(dt > 50000.)
+    w = w[0]
+    
+    peaks, _ = find_peaks(v, height=1 * np.std(v) + np.median(v))
+    curve = np.array([])
+    for i in range(len(peaks)):
+        arr1 = np.arange(peaks[i], peaks[i] + 10, 1)
+        arr1_valid = arr1[arr1 < len(t_micro)]
+        curve = np.concatenate((curve, arr1_valid.astype(int)))
+
+    curve = curve.astype(int)  # Convert curve to integer type
+
+    print('Baseline Voltage:', baseline_quantile)
+    print()
+
+    fig, axs = plt.subplots(2)
+    plt.subplots_adjust(left=0.1, bottom=0.1, right=0.9, top=0.9, wspace=0.4, hspace=0.4)
+    
+    fig.suptitle(infile)
+
+    # Scatter plot of the data
+    axs[0].scatter(t_micro, v, s=20)
+    # Line plot of the data with reduced opacity
+    axs[0].plot(t_micro, v, alpha=0.5)
+    # Plot the baseline as a horizontal line in a different color
+    axs[0].axhline(y=baseline_quantile, color='black', linestyle='--', label='Calculated Baseline')
+    # Plot the points corresponding to the curve in a different color (xr for red crosses)
+    axs[0].plot(t_micro[curve], v[curve], 'xr', label='Peaks and Curve Points')
+    axs[0].set_xlabel('TIME, Seconds')
+    axs[0].set_ylabel('VOLTAGE, Volts')
+    axs[0].legend()
+    axs[1].plot(tax[1:] / 1000., h)
+    axs[1].set_yscale('log')
+    axs[1].set_xlabel('GAP, milliseconds')
+    axs[1].set_ylabel('NO. OF GAPS')
+    plt.show()
+
+# Call the modified function with the specified file path and percentile
+baseline_quantile, v = calculate_baseline_from_pulses(file2, 10)
+quicklook(file2, baseline_quantile, v)
