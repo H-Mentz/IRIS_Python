@@ -1,0 +1,127 @@
+# MEDIUM BOARD BASELINE VOLTAGES SUBTRACTED FROM AVERAGE HIGH VOLTAGES
+# NOV 21 2023
+
+#This code (hopefully) does:
+# 1. Averages over the previously calculated baseline voltage for all three files in a given run 
+# 2. Then it calculates the average of the top 10 highest voltages for each data file using the load_and_process_data function. 
+# 3. Next it subtracts the baseline voltage from the average of the top 30 highest voltages 
+# 4. Multiplies the pin respective capacitance by the baseline subtracted max voltages 
+# 5. Takes the ratio between the two and gives total accumulated charge
+# 6. Prints the results.
+
+
+file1 = 'MDA_data/21360001.TXT'
+file2 = 'MDA_data/21360002.TXT'
+file3 = 'MDA_data/21360003.TXT'
+
+import numpy as np
+import matplotlib
+matplotlib.use('TKAgg', force=True)
+from matplotlib import pyplot as plt
+from scipy.signal import find_peaks
+import pdb
+from statistics import mean
+
+def calculate_baseline_from_pulses(infile, percentile):
+    # ... (unchanged code)
+    #calculates and prints the nth quantile of n% of data points
+    t, k = np.loadtxt(infile, skiprows=4, unpack=True, delimiter=',')
+    s = 20.0
+    v = k * (3.3 / 4096) / s
+    
+    print()
+    print()
+    print(f'For {infile}:') #This creates a header for each file you run the function on (easier to read)
+    print()
+    print()
+    
+    median_value = np.median(v) # Calculate the median value of this dataset
+
+    #I did this 2 different ways to see if it changed the answers at all
+    baseline_quantile = np.quantile(v, 0.10)
+    value_at_percentile = np.quantile(v, percentile / 100.0)
+    
+    
+    print(f"The {percentile}th percentile of the lowest {percentile}% values is: {value_at_percentile}")
+    print()
+    
+    # Check that the quantile is actually less than the median voltage
+    print(f"Quantile(0.10) = {baseline_quantile} {'is less than' if baseline_quantile < median_value else 'is NOT less than'} Median = {median_value}")
+    print()
+    
+    
+    return baseline_quantile, v
+
+def save_baseline_quantile(infile, percentile):
+    baseline_quantile, _ = calculate_baseline_from_pulses(infile, percentile)
+    return baseline_quantile
+
+# Save the results for each file
+baseline_quantile_file1 = save_baseline_quantile(file1, 10)
+baseline_quantile_file2 = save_baseline_quantile(file2, 10)
+baseline_quantile_file3 = save_baseline_quantile(file3, 10)
+
+def baseline_average(baseline1, baseline2, baseline3):
+    # Calculate the average of the baseline quantiles
+    average_baseline_quantile = np.mean([baseline1, baseline2, baseline3])
+
+    # Print the average baseline quantile
+    print()
+    print(f'Average Baseline Quantile: {average_baseline_quantile}')
+    print()
+
+    return average_baseline_quantile
+
+# Pass the correct arguments to baseline_average
+average_baseline_quantile = baseline_average(baseline_quantile_file1, baseline_quantile_file2, baseline_quantile_file3)
+
+def load_and_process_data(infile, n):
+    # ... (unchanged code)
+    #Takes the voltages of each file, puts them in order from lowest to hights, then makes a new array of 10 highest V
+    
+    t, k = np.loadtxt(infile, skiprows=4, unpack=True, delimiter=',')
+    s = 4.0
+    v = k * (3.3 / 4096) / s
+
+    sorted_indices = np.argsort(v)
+    sorted_voltages = v[sorted_indices]
+    top_n_voltages = sorted_voltages[-n:]
+
+    print(f"The {n} largest voltage values for run {infile} are {top_n_voltages}")
+    print()
+    top_v = np.array([top_n_voltages])
+    return top_v
+
+def Avg_minus_baseline(average_baseline_quantile, *data_files):
+    n = 10
+    n1 = 30
+
+    top_voltages = []
+
+    for file in data_files:
+        top_voltages.append(load_and_process_data(file, n))
+
+    concatenated_voltages = np.concatenate(top_voltages)
+
+    print(f'The 30 highest voltages for all three files of this run are {concatenated_voltages}')
+    print()
+
+    # Calculate the Mean of the 30 highest voltages
+    x4 = np.mean(concatenated_voltages)
+    print(f'The mean of the 30 highest voltages for all three runs is {x4} Volts')
+    print()
+
+    # Subtract the baseline from the mean value
+    result = x4 - average_baseline_quantile
+    print(f"Result (Mean High Voltage - Baseline): {result} Volts")
+    print()
+
+    # Calculate the charge stored q = Voltage in Volts * Capacitance in picoFarads
+    # Q = result * 25.0 Both V0 and V1 have C = 25 pF
+    Q_Vo = result * 150.0  # MEDIUM BOARD - V0 has C = 150 pF
+    # Q_Vi = result * 200.0 # MEDIUM BOARD - Vi has C = 200 pF
+    print(f"The charge stored (Q = V*C) is {Q_Vo}")
+    print()
+
+# Pass the correct arguments to Avg_minus_baseline
+Avg_minus_baseline(average_baseline_quantile, file1, file2, file3)
